@@ -1,11 +1,14 @@
 /* ==========================================================================
-   FASHIONSHOP - SCRIPT GLOBAL (CARRINHO E INTERFACE)
+   ALTO JORDÃO - SCRIPT GLOBAL (CARRINHO, FAVORITOS E INTERFACE)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("FashionShop: Sistema carregado.");
+    console.log("Alto Jordão: Sistema carregado v2.1");
 
+    verificarERepararFavoritos();
+    setupHeaderActions();
     setupMenuIndicator(); 
+    
     atualizarInterfaceFavoritos();
     renderizarCarrinho(); 
     
@@ -14,41 +17,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/* --- 1. LÓGICA DE COMPRA DIRETA (PÁGINA DE PRODUTO) --- */
+/* --- UTILS --- */
 
+// Garante que o caminho da imagem esteja correto e evita erro 'undefined'
+function resolverCaminhoImagem(imgRaw) {
+    if (!imgRaw || imgRaw === 'undefined') return 'img/produtos/cb74cbfc6e4fa08cecc6bd257fc0f000.webp';
+    if (imgRaw.startsWith('http') || imgRaw.startsWith('data:') || imgRaw.includes('/')) {
+        return imgRaw;
+    }
+    return `img/produtos/${imgRaw}`;
+}
+
+function verificarERepararFavoritos() {
+    try {
+        const favs = localStorage.getItem('fashion_favs');
+        if (favs) JSON.parse(favs); 
+    } catch (e) {
+        localStorage.setItem('fashion_favs', JSON.stringify([]));
+    }
+}
+
+/* --- 0. CONFIGURAÇÃO DO HEADER --- */
+function setupHeaderActions() {
+    const overlay = document.getElementById('overlay');
+    if (overlay) {
+        overlay.addEventListener('click', fecharTodosModais);
+    }
+}
+
+/* --- 1. LÓGICA DE COMPRA (PRODUTO) --- */
+
+// Função chamada pelo botão "ADICIONAR AO CARRINHO" na produto.php
 function adicionarAoCarrinhoDireto(produto) {
-    const txtCor = document.getElementById('txt-cor-selecionada');
-    const selTam = document.getElementById('select-tamanho');
+    // Busca os valores dos inputs selecionados (que seu script de botões deve preencher)
+    const inputTam = document.getElementById('selected-tamanho');
+    const inputCor = document.getElementById('selected-cor');
+    
+    const tamSelecionado = inputTam ? inputTam.value : "";
+    const corSelecionada = inputCor ? inputCor.value : "";
 
-    const corSelecionada = txtCor ? txtCor.innerText : 'Padrão';
-    if (corSelecionada === "Selecione") {
-        alert("Por favor, selecione uma cor.");
+    // Validação de tamanho obrigatório
+    if (!tamSelecionado) {
+        alert("Por favor, selecione um tamanho antes de adicionar.");
         return;
     }
-
-    const tamSelecionado = selTam ? selTam.value : 'Único';
-    if (tamSelecionado === "") {
-        alert("Por favor, selecione um tamanho.");
-        return;
-    }
-
-    // Normalização do caminho da imagem
-    const imgRaw = produto.imagem || produto.img || 'placeholder.jpg';
-    const finalImg = imgRaw.includes('/') ? imgRaw : "img/" + imgRaw;
 
     const itemParaCarrinho = {
         id: produto.id,
         nome: produto.nome,
         preco: parseFloat(produto.preco),
-        img: finalImg,
-        opcoes: `Tam: ${tamSelecionado} | Cor: ${corSelecionada}`
+        img: resolverCaminhoImagem(produto.imagem || produto.img),
+        tamanho_escolhido: tamSelecionado,
+        cor_escolhida: corSelecionada || 'Padrão',
+        opcoes: `Tam: ${tamSelecionado}${corSelecionada ? ' | Cor: ' + corSelecionada : ''}`
     };
 
     adicionarAoCarrinho(itemParaCarrinho);
 }
 
-/* --- 2. LÓGICA DO CARRINHO (SIDEBAR) --- */
-
+/* --- 2. LÓGICA DO CARRINHO --- */
 function abrirCarrinho() {
     const sidebar = document.getElementById('cartSidebar');
     const overlay = document.getElementById('overlay');
@@ -68,22 +95,16 @@ function fecharTodosModais() {
 
 function adicionarAoCarrinho(p) {
     let carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
-    const cartId = `${p.id}-${p.opcoes}`; 
+    
+    // O cartId agora leva em conta tamanho e cor para não misturar itens iguais de tamanhos diferentes
+    const cartId = `${p.id}-${p.tamanho_escolhido}-${p.cor_escolhida}`; 
 
     const index = carrinho.findIndex(item => item.cartId === cartId);
 
     if (index > -1) {
         carrinho[index].qtd += 1;
     } else {
-        carrinho.push({
-            cartId: cartId,
-            id: p.id,
-            nome: p.nome,
-            preco: p.preco,
-            img: p.img,
-            opcoes: p.opcoes,
-            qtd: 1
-        });
+        carrinho.push({ ...p, cartId: cartId, qtd: 1 });
     }
 
     sessionStorage.setItem('fashion_cart', JSON.stringify(carrinho));
@@ -96,42 +117,43 @@ function renderizarCarrinho() {
     const totalElemento = document.getElementById('totalValor');
     const badge = document.getElementById('cartCountBadge');
     
-    if (!container) return;
-    
     const carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
     let totalGeral = 0;
     let totalItens = 0;
     
+    if (badge) {
+        totalItens = carrinho.reduce((acc, item) => acc + (parseInt(item.qtd) || 0), 0);
+        badge.innerText = totalItens;
+        badge.style.display = totalItens > 0 ? "flex" : "none";
+    }
+
+    if (!container) return;
+    
     if (carrinho.length === 0) {
-        container.innerHTML = '<p style="text-align:center; padding:30px; color:#999;">Sua sacola está vazia.</p>';
+        container.innerHTML = '<div style="text-align:center; padding:40px; color:#bbb; font-size:13px;">Sua sacola está vazia.</div>';
         if(totalElemento) totalElemento.innerText = "R$ 0,00";
-        if(badge) badge.style.display = "none";
         return;
     }
 
     container.innerHTML = carrinho.map(item => {
-        totalGeral += (item.preco * item.qtd);
-        totalItens += item.qtd;
-        
+        const precoNum = parseFloat(item.preco) || 0;
+        const qtdNum = parseInt(item.qtd) || 1;
+        totalGeral += (precoNum * qtdNum);
+
         return `
-            <div style="display: flex; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eee; align-items: center;">
-                <img src="${item.img}" style="width:50px; height:65px; object-fit:cover; border-radius:4px;" onerror="this.src='img/placeholder.jpg'">
+            <div class="cart-item" style="display: flex; gap: 15px; padding: 15px 0; border-bottom: 1px solid #f5f5f5; align-items: center;">
+                <img src="${resolverCaminhoImagem(item.img)}" style="width:60px; height:75px; object-fit:contain; background:#f9f9f9; border-radius:4px;" onerror="this.src='img/produtos/cb74cbfc6e4fa08cecc6bd257fc0f000.webp'">
                 <div style="flex: 1;">
-                    <h5 style="margin: 0; font-size: 13px; font-weight:800;">${item.nome}</h5>
-                    <p style="margin:0; font-size:10px; color:#999; text-transform:uppercase;">${item.opcoes}</p>
-                    <span style="font-weight: 700; font-size: 13px;">${item.qtd}x R$ ${item.preco.toLocaleString('pt-br', {minimumFractionDigits: 2})}</span>
+                    <h5 style="margin: 0; font-size: 11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">${item.nome}</h5>
+                    <p style="margin:2px 0; font-size:10px; color:#999; font-weight:600;">${item.opcoes}</p>
+                    <span style="font-weight: 700; font-size: 13px; color:#000;">${qtdNum}x R$ ${precoNum.toLocaleString('pt-br', {minimumFractionDigits: 2})}</span>
                 </div>
-                <button onclick="removerDoCarrinho('${item.cartId}')" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:20px; padding:5px;">&times;</button>
+                <button onclick="removerDoCarrinho('${item.cartId}')" style="background:none; border:none; color:#ccc; cursor:pointer; font-size:20px; transition:0.2s;" onmouseover="this.style.color='#000'" onmouseout="this.style.color='#ccc'">&times;</button>
             </div>
         `;
     }).join('');
 
     if(totalElemento) totalElemento.innerText = `R$ ${totalGeral.toLocaleString('pt-br', {minimumFractionDigits: 2})}`;
-    
-    if(badge) {
-        badge.innerText = totalItens;
-        badge.style.display = totalItens > 0 ? "block" : "none";
-    }
 }
 
 function removerDoCarrinho(cartId) {
@@ -141,8 +163,7 @@ function removerDoCarrinho(cartId) {
     renderizarCarrinho();
 }
 
-/* --- 3. LÓGICA DE FAVORITOS (LOCALSTORAGE) --- */
-
+/* --- 3. LÓGICA DE FAVORITOS --- */
 function toggleFavorito(produto) {
     if (!produto || !produto.id) return;
 
@@ -152,15 +173,11 @@ function toggleFavorito(produto) {
     if (index > -1) {
         favoritos.splice(index, 1);
     } else {
-        // Correção para o erro de "undefined" na imagem
-        const imgRaw = produto.imagem || produto.img || 'placeholder.jpg';
-        const finalImg = imgRaw.includes('/') ? imgRaw : "img/" + imgRaw;
-
         favoritos.push({
             id: produto.id,
             nome: produto.nome,
             preco: produto.preco,
-            img: finalImg
+            img: resolverCaminhoImagem(produto.imagem || produto.img)
         });
     }
 
@@ -177,15 +194,9 @@ function atualizarInterfaceFavoritos() {
     
     document.querySelectorAll('.btn-fav').forEach(btn => {
         const idProd = btn.getAttribute('data-id'); 
-        if (favoritos.some(item => String(item.id) === String(idProd))) {
-            btn.classList.add('active');
-            btn.innerHTML = '❤️';
-            btn.style.color = '#ff4d4d';
-        } else {
-            btn.classList.remove('active');
-            btn.innerHTML = '🤍';
-            btn.style.color = 'inherit';
-        }
+        const isFav = favoritos.some(item => String(item.id) === String(idProd));
+        btn.innerHTML = isFav ? '❤️' : '🤍';
+        btn.classList.toggle('active', isFav);
     });
 }
 
@@ -197,81 +208,47 @@ function renderizarPaginaFavoritos() {
     
     if (favoritos.length === 0) {
         container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align:center; padding:80px; color:#999;">
-                <h3 style="margin-bottom:15px;">Sua lista de desejos está vazia.</h3>
-                <a href="index.php" style="text-decoration:underline; color:#000;">Voltar para a loja</a>
+            <div style="grid-column: 1/-1; text-align:center; padding:100px 20px;">
+                <h2 style="font-weight:900; color:#eee; font-size:3rem; margin-bottom:10px; text-transform:uppercase;">Vazio</h2>
+                <p style="color:#999; margin-bottom:30px;">Sua lista de desejos está aguardando por você.</p>
+                <a href="index.php" class="btn-black-capsule" style="display:inline-block; background:#000; color:#fff; padding:18px 50px; border-radius:50px; text-decoration:none; font-weight:800; font-size:12px; letter-spacing:1px;">EXPLORAR LANÇAMENTOS</a>
             </div>`;
         return;
     }
 
     container.innerHTML = favoritos.map(prod => {
-        // Garante que o objeto passado para a função seja seguro
-        const prodData = JSON.stringify(prod).replace(/'/g, "&apos;");
+        const prodData = JSON.stringify(prod).replace(/"/g, '&quot;');
         
         return `
             <div class="product-card">
                 <div class="product-thumb">
-                    <button class="btn-fav active" data-id="${prod.id}" 
-                       onclick='toggleFavorito(${prodData})'>❤️</button>
-                    <img src="${prod.img}" alt="${prod.nome}" onerror="this.src='img/placeholder.jpg'">
+                    <button class="btn-fav active" data-id="${prod.id}" onclick="toggleFavorito(${prodData})">❤️</button>
+                    <img src="${resolverCaminhoImagem(prod.img)}" alt="${prod.nome}" onerror="this.src='img/produtos/cb74cbfc6e4fa08cecc6bd257fc0f000.webp'">
                 </div>
-                <button class="btn-buy-overlay" onclick="location.href='produto.php?id=${prod.id}'">VER PRODUTO</button>
                 <div class="product-details">
-                    <h4>${prod.nome}</h4>
+                    <h4 onclick="location.href='produto.php?id=${prod.id}'">${prod.nome}</h4>
                     <p class="price">R$ ${parseFloat(prod.preco).toLocaleString('pt-br', {minimumFractionDigits: 2})}</p>
+                    <button class="btn-buy-only" style="width:100%; border-radius:30px;" onclick="location.href='produto.php?id=${prod.id}'">DETALHES</button>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-/* --- 4. UTILITÁRIOS DE INTERFACE --- */
-
+/* --- 4. ESTÉTICA --- */
 function setupMenuIndicator() {
     const indicator = document.querySelector('.nav-indicator');
     const items = document.querySelectorAll('.main-nav a');
-    
     if (!indicator || items.length === 0) return;
 
-    const moveIndicator = (el) => {
+    const move = (el) => {
         indicator.style.width = `${el.offsetWidth}px`;
         indicator.style.left = `${el.offsetLeft}px`;
         indicator.style.opacity = "1";
     };
 
     items.forEach(item => {
-        item.addEventListener('mouseenter', () => moveIndicator(item));
-        if (item.classList.contains('active')) moveIndicator(item);
+        item.addEventListener('mouseenter', () => move(item));
+        if (item.classList.contains('active')) move(item);
     });
 }
-
-async function finalizarCompraNoBanco() {
-    const carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
-    
-    if (carrinho.length === 0) {
-        alert("Seu carrinho está vazio!");
-        return;
-    }
-
-    try {
-        const resposta = await fetch('processar_pedido.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(carrinho)
-        });
-
-        const resultado = await resposta.json();
-
-        if (resultado.sucesso) {
-            alert("Pedido realizado com sucesso!");
-            sessionStorage.removeItem('fashion_cart');
-            window.location.href = 'sucesso.php?id=' + resultado.pedido_id;
-        } else {
-            alert("Erro ao processar: " + resultado.erro);
-        }
-    } catch (error) {
-        console.error("Erro na requisição:", error);
-        alert("Erro de conexão com o servidor.");
-    }
-}
-

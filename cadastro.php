@@ -1,4 +1,9 @@
 <?php 
+// 1. Iniciar a sessão no topo para poder logar o usuário
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'config.php'; 
 
 $mensagem = "";
@@ -7,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = $_POST['nome'];
     $email = $_POST['email'];
     $senha = $_POST['senha'];
-    $nivel = 'cliente'; // Todo cadastro pelo site começa como cliente
+    $nivel = 'cliente'; 
 
     // Verificar se o e-mail já existe
     $check = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
@@ -16,16 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($check->rowCount() > 0) {
         $mensagem = "Este e-mail já está cadastrado!";
     } else {
+        // Criptografar a senha antes de salvar
+        $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
+
         // Inserir no banco
         $sql = "INSERT INTO usuarios (nome, email, senha, nivel) VALUES (?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
         
-        if ($stmt->execute([$nome, $email, $senha, $nivel])) {
-            // Sucesso! Vamos logar o usuário automaticamente e mandar para a index
+        if ($stmt->execute([$nome, $email, $senhaHash, $nivel])) {
+            // SUCESSO! Logar o usuário automaticamente preenchendo a sessão
             $_SESSION['usuario_id'] = $pdo->lastInsertId();
             $_SESSION['usuario_nome'] = $nome;
             $_SESSION['usuario_nivel'] = $nivel;
             
+            // REDIRECIONAMENTO para a index
             header("Location: index.php");
             exit();
         } else {
@@ -39,48 +48,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FashionShop | Cadastro</title>
+    <title>Alto Jordão | Cadastro</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <header>
-        <div class="logo" onclick="location.href='index.php'">
-            FASHION<span>SHOP</span>
-        </div>
-    </header>
+<?php include 'header.php'; ?>
 
-    <main class="auth-container">
-        <div class="auth-box">
+<main class="main-centralizada">
+    <div class="container-cadastro">
+        <header class="cadastro-header">
             <h1>CRIE SUA CONTA</h1>
             <p>Junte-se a nós para uma experiência personalizada.</p>
-            
-            <?php if($mensagem !== ""): ?>
-                <p style="color: red; background: #ffeeee; padding: 10px; border-radius: 4px; font-size: 14px; text-align: center;">
-                    <?php echo $mensagem; ?>
-                </p>
-            <?php endif; ?>
-            
-            <form action="cadastro.php" method="POST">
-                <div class="input-group">
-                    <label>Nome Completo</label>
-                    <input type="text" name="nome" placeholder="Como quer que te chamemos?" required>
-                </div>
-                <div class="input-group">
-                    <label>E-mail</label>
-                    <input type="email" name="email" placeholder="seu@email.com" required>
-                </div>
-                <div class="input-group">
-                    <label>Senha</label>
-                    <input type="password" name="senha" placeholder="Mínimo 8 caracteres" required>
-                </div>
-                
-                <button type="submit" class="btn-auth">Criar Conta</button>
-            </form>
-            
-            <p class="auth-footer">Já tem uma conta? <a href="login.php">Entrar</a></p>
-        </div>
-    </main>
+        </header>
 
+        <?php if ($mensagem): ?>
+            <p style="color: #e74c3c; font-weight: bold; text-align: center; margin-bottom: 20px;">
+                <?= $mensagem ?>
+            </p>
+        <?php endif; ?>
+
+        <form action="" method="POST" class="form-cadastro">
+            <div class="input-grupo">
+                <label for="nome">NOME COMPLETO</label>
+                <input type="text" id="nome" name="nome" placeholder="Como quer que te chamemos?" required>
+            </div>
+
+            <div class="input-grupo">
+                <label for="email">E-MAIL</label>
+                <input type="email" id="email" name="email" placeholder="seu@email.com" required>
+            </div>
+
+            <div class="input-grupo grupo-senha">
+                <label for="senha">SENHA</label>
+                <input type="password" id="senha" name="senha" placeholder="Mínimo 8 caracteres" required minlength="8">
+                <button type="button" class="btn-show-pass" onclick="toggleSenha()">👁️</button>
+            </div>
+
+            <button type="submit" class="btn-black-capsule">CRIAR CONTA</button>
+        </form>
+
+        <footer class="cadastro-footer">
+            <p>Já tem uma conta? <a href="login.php">Entrar</a></p>
+        </footer>
+    </div>
+</main>
+
+<script>
+// Função simples caso não esteja no seu script.js
+function toggleSenha() {
+    var x = document.getElementById("senha");
+    if (x.type === "password") {
+        x.type = "text";
+    } else {
+        x.type = "password";
+    }
+}
+</script>
 </body>
 </html>
