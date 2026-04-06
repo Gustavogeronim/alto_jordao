@@ -72,6 +72,9 @@ function getCaminhoImagemOferta($img) {
                                              style="max-width: 85%; max-height: 85%; object-fit: contain;">
                                     </div>
                                 </a>
+                                  <button class="btn-buy-overlay" onclick="window.location.href='produto.php?id=<?= $p['id'] ?>'">
+                                    Ver Detalhes
+                                </button>
                             </div>
 
                             <div class="product-details" style="padding: 15px 0;">

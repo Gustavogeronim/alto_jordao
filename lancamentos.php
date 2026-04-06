@@ -60,7 +60,7 @@ function getCaminhoImagemLancamento($img) {
                                 </a>
                                 
                                 <button class="btn-buy-overlay" onclick="window.location.href='produto.php?id=<?= $p['id'] ?>'">
-                                    Ver Produto
+                                    Ver Detalhes
                                 </button>
                             </div>
 

@@ -18,6 +18,7 @@ $options = [
 
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
+    $conn = $pdo; // Cria um apelido para manter compatibilidade
 } catch (\PDOException $e) {
     die("Erro na conexão: " . $e->getMessage());
 }
@@ -28,41 +29,34 @@ try {
 function exibirImagem($nome_imagem) {
     $caminho_upload = "uploads/" . $nome_imagem;
     
-    // 1. Arquivo físico na pasta uploads
     if (!empty($nome_imagem) && file_exists($caminho_upload) && is_file($caminho_upload)) {
         return '<img src="'.$caminho_upload.'" class="img-produto-card" alt="Produto">';
     } 
     
-    // 2. Link externo
     if (strpos($nome_imagem, 'http') !== false) {
         return '<img src="'.$nome_imagem.'" class="img-produto-card" alt="Produto">';
     }
 
-    // 3. Fallback: Emoji ou Texto
     return '<div class="img-emoji-card">' . $nome_imagem . '</div>';
 }
 
 function traduzirCor($corPT) {
-    $corPT = mb_strtolower(trim($corPT)); // Deixa tudo em minúsculo e limpa espaços
-    
+    $corPT = mb_strtolower(trim($corPT));
     $cores = [
-        'preto'    => 'black',
-        'branco'   => 'white',
-        'vermelho' => 'red',
-        'azul'     => 'blue',
-        'verde'    => 'green',
-        'amarelo'  => 'yellow',
-        'cinza'    => 'gray',
-        'rosa'     => 'deeppink',
-        'marrom'   => 'brown',
-        'laranja'  => 'orange',
-        'roxo'     => 'purple',
-        'bege'     => '#f5f5dc',
-        'marinho'  => '#000080'
+        'preto'     => 'black',
+        'branco'    => 'white',
+        'vermelho'  => 'red',
+        'azul'      => 'blue',
+        'verde'     => 'green',
+        'amarelo'   => 'yellow',
+        'cinza'     => 'gray',
+        'rosa'      => 'deeppink',
+        'marrom'    => 'brown',
+        'laranja'   => 'orange',
+        'roxo'      => 'purple',
+        'bege'      => '#f5f5dc',
+        'marinho'   => '#000080'
     ];
-
-    // Se a cor existir na lista, retorna o inglês. Se não, retorna a própria string 
-    // (isso permite que você ainda use #hexadecimal se quiser).
     return $cores[$corPT] ?? $corPT;
 }
 ?>

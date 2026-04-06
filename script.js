@@ -3,7 +3,7 @@
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Alto Jordão: Sistema carregado v2.1");
+    console.log("Alto Jordão: Sistema carregado v2.4");
 
     verificarERepararFavoritos();
     setupHeaderActions();
@@ -19,9 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* --- UTILS --- */
 
-// Garante que o caminho da imagem esteja correto e evita erro 'undefined'
 function resolverCaminhoImagem(imgRaw) {
-    if (!imgRaw || imgRaw === 'undefined') return 'img/produtos/cb74cbfc6e4fa08cecc6bd257fc0f000.webp';
+    if (!imgRaw || imgRaw === 'undefined' || imgRaw === '') {
+        return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Xw8AAgcBR7Y6968AAAAASUVORK5CYII=';
+    }
     if (imgRaw.startsWith('http') || imgRaw.startsWith('data:') || imgRaw.includes('/')) {
         return imgRaw;
     }
@@ -47,16 +48,13 @@ function setupHeaderActions() {
 
 /* --- 1. LÓGICA DE COMPRA (PRODUTO) --- */
 
-// Função chamada pelo botão "ADICIONAR AO CARRINHO" na produto.php
 function adicionarAoCarrinhoDireto(produto) {
-    // Busca os valores dos inputs selecionados (que seu script de botões deve preencher)
     const inputTam = document.getElementById('selected-tamanho');
     const inputCor = document.getElementById('selected-cor');
     
     const tamSelecionado = inputTam ? inputTam.value : "";
     const corSelecionada = inputCor ? inputCor.value : "";
 
-    // Validação de tamanho obrigatório
     if (!tamSelecionado) {
         alert("Por favor, selecione um tamanho antes de adicionar.");
         return;
@@ -66,7 +64,7 @@ function adicionarAoCarrinhoDireto(produto) {
         id: produto.id,
         nome: produto.nome,
         preco: parseFloat(produto.preco),
-        img: resolverCaminhoImagem(produto.imagem || produto.img),
+        img: produto.imagem || produto.img,
         tamanho_escolhido: tamSelecionado,
         cor_escolhida: corSelecionada || 'Padrão',
         opcoes: `Tam: ${tamSelecionado}${corSelecionada ? ' | Cor: ' + corSelecionada : ''}`
@@ -95,10 +93,7 @@ function fecharTodosModais() {
 
 function adicionarAoCarrinho(p) {
     let carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
-    
-    // O cartId agora leva em conta tamanho e cor para não misturar itens iguais de tamanhos diferentes
     const cartId = `${p.id}-${p.tamanho_escolhido}-${p.cor_escolhida}`; 
-
     const index = carrinho.findIndex(item => item.cartId === cartId);
 
     if (index > -1) {
@@ -119,10 +114,9 @@ function renderizarCarrinho() {
     
     const carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
     let totalGeral = 0;
-    let totalItens = 0;
     
     if (badge) {
-        totalItens = carrinho.reduce((acc, item) => acc + (parseInt(item.qtd) || 0), 0);
+        const totalItens = carrinho.reduce((acc, item) => acc + (parseInt(item.qtd) || 0), 0);
         badge.innerText = totalItens;
         badge.style.display = totalItens > 0 ? "flex" : "none";
     }
@@ -130,7 +124,7 @@ function renderizarCarrinho() {
     if (!container) return;
     
     if (carrinho.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:40px; color:#bbb; font-size:13px;">Sua sacola está vazia.</div>';
+        container.innerHTML = '<div style="text-align:center; padding:40px; color:#bbb; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Sua sacola está vazia.</div>';
         if(totalElemento) totalElemento.innerText = "R$ 0,00";
         return;
     }
@@ -141,14 +135,14 @@ function renderizarCarrinho() {
         totalGeral += (precoNum * qtdNum);
 
         return `
-            <div class="cart-item" style="display: flex; gap: 15px; padding: 15px 0; border-bottom: 1px solid #f5f5f5; align-items: center;">
-                <img src="${resolverCaminhoImagem(item.img)}" style="width:60px; height:75px; object-fit:contain; background:#f9f9f9; border-radius:4px;" onerror="this.src='img/produtos/cb74cbfc6e4fa08cecc6bd257fc0f000.webp'">
+            <div class="cart-item" style="display: flex; gap: 15px; padding: 20px 0; border-bottom: 1px solid #f2f2f2; align-items: center;">
+                <img src="${resolverCaminhoImagem(item.img)}" style="width:70px; height:90px; object-fit:cover; background:#f9f9f9;">
                 <div style="flex: 1;">
-                    <h5 style="margin: 0; font-size: 11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">${item.nome}</h5>
-                    <p style="margin:2px 0; font-size:10px; color:#999; font-weight:600;">${item.opcoes}</p>
-                    <span style="font-weight: 700; font-size: 13px; color:#000;">${qtdNum}x R$ ${precoNum.toLocaleString('pt-br', {minimumFractionDigits: 2})}</span>
+                    <h5 style="margin: 0; font-size: 11px; font-weight:900; text-transform:uppercase; letter-spacing:1px;">${item.nome}</h5>
+                    <p style="margin:4px 0; font-size:10px; color:#aaa; font-weight:700; text-transform:uppercase;">${item.opcoes}</p>
+                    <span style="font-weight: 800; font-size: 13px; color:#000;">${qtdNum}x R$ ${precoNum.toLocaleString('pt-br', {minimumFractionDigits: 2})}</span>
                 </div>
-                <button onclick="removerDoCarrinho('${item.cartId}')" style="background:none; border:none; color:#ccc; cursor:pointer; font-size:20px; transition:0.2s;" onmouseover="this.style.color='#000'" onmouseout="this.style.color='#ccc'">&times;</button>
+                <button onclick="removerDoCarrinho('${item.cartId}')" style="background:none; border:none; color:#ddd; cursor:pointer; font-size:22px; padding:10px;">&times;</button>
             </div>
         `;
     }).join('');
@@ -161,6 +155,37 @@ function removerDoCarrinho(cartId) {
     carrinho = carrinho.filter(i => i.cartId !== cartId);
     sessionStorage.setItem('fashion_cart', JSON.stringify(carrinho));
     renderizarCarrinho();
+}
+
+/**
+ * FUNÇÃO DE FINALIZAÇÃO - ATUALIZADA PARA FORM-SUBMIT
+ * Esta função força o navegador a mudar para a página processar_pedido.php
+ */
+function finalizarCompra() {
+    console.log("Tentando finalizar compra...");
+    const carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
+    
+    if (carrinho.length === 0) {
+        alert("Sua sacola está vazia.");
+        return;
+    }
+
+    // Criar um formulário invisível
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'processar_pedido.php';
+
+    // Adicionar o JSON do carrinho ao formulário
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'itens_json';
+    input.value = JSON.stringify(carrinho);
+
+    form.appendChild(input);
+    document.body.appendChild(form);
+    
+    console.log("Enviando dados para o servidor...");
+    form.submit();
 }
 
 /* --- 3. LÓGICA DE FAVORITOS --- */
@@ -177,62 +202,21 @@ function toggleFavorito(produto) {
             id: produto.id,
             nome: produto.nome,
             preco: produto.preco,
-            img: resolverCaminhoImagem(produto.imagem || produto.img)
+            img: produto.imagem || produto.img
         });
     }
 
     localStorage.setItem('fashion_favs', JSON.stringify(favoritos));
     atualizarInterfaceFavoritos();
-    
-    if (document.getElementById('favsGrid')) {
-        renderizarPaginaFavoritos();
-    }
 }
 
 function atualizarInterfaceFavoritos() {
     const favoritos = JSON.parse(localStorage.getItem('fashion_favs')) || [];
-    
     document.querySelectorAll('.btn-fav').forEach(btn => {
         const idProd = btn.getAttribute('data-id'); 
         const isFav = favoritos.some(item => String(item.id) === String(idProd));
         btn.innerHTML = isFav ? '❤️' : '🤍';
-        btn.classList.toggle('active', isFav);
     });
-}
-
-function renderizarPaginaFavoritos() {
-    const container = document.getElementById('favsGrid');
-    if (!container) return;
-    
-    const favoritos = JSON.parse(localStorage.getItem('fashion_favs')) || [];
-    
-    if (favoritos.length === 0) {
-        container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align:center; padding:100px 20px;">
-                <h2 style="font-weight:900; color:#eee; font-size:3rem; margin-bottom:10px; text-transform:uppercase;">Vazio</h2>
-                <p style="color:#999; margin-bottom:30px;">Sua lista de desejos está aguardando por você.</p>
-                <a href="index.php" class="btn-black-capsule" style="display:inline-block; background:#000; color:#fff; padding:18px 50px; border-radius:50px; text-decoration:none; font-weight:800; font-size:12px; letter-spacing:1px;">EXPLORAR LANÇAMENTOS</a>
-            </div>`;
-        return;
-    }
-
-    container.innerHTML = favoritos.map(prod => {
-        const prodData = JSON.stringify(prod).replace(/"/g, '&quot;');
-        
-        return `
-            <div class="product-card">
-                <div class="product-thumb">
-                    <button class="btn-fav active" data-id="${prod.id}" onclick="toggleFavorito(${prodData})">❤️</button>
-                    <img src="${resolverCaminhoImagem(prod.img)}" alt="${prod.nome}" onerror="this.src='img/produtos/cb74cbfc6e4fa08cecc6bd257fc0f000.webp'">
-                </div>
-                <div class="product-details">
-                    <h4 onclick="location.href='produto.php?id=${prod.id}'">${prod.nome}</h4>
-                    <p class="price">R$ ${parseFloat(prod.preco).toLocaleString('pt-br', {minimumFractionDigits: 2})}</p>
-                    <button class="btn-buy-only" style="width:100%; border-radius:30px;" onclick="location.href='produto.php?id=${prod.id}'">DETALHES</button>
-                </div>
-            </div>
-        `;
-    }).join('');
 }
 
 /* --- 4. ESTÉTICA --- */

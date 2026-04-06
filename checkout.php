@@ -1,5 +1,19 @@
 <?php 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once 'config.php'; 
+
+// --- LÓGICA DE BUSCA DE DADOS DO USUÁRIO ---
+$user = null;
+if (isset($_SESSION['usuario_id'])) {
+    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = ?");
+    $stmt->execute([$_SESSION['usuario_id']]);
+    $user = $stmt->fetch();
+} else {
+    // Se você quiser obrigar o login para comprar, descomente a linha abaixo:
+    // header("Location: login.php?erro=faca_login"); exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -57,9 +71,6 @@ require_once 'config.php';
             transition: 0.3s;
         }
         .form-group input:focus { border-color: #000; outline: none; background: #fff; }
-
-        /* Estilo para campos carregando ou desabilitados */
-        .loading-field { opacity: 0.6; cursor: wait; }
 
         .resumo-pedido {
             background: #fff;
@@ -124,11 +135,11 @@ require_once 'config.php';
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div class="form-group">
                         <label>Nome Completo</label>
-                        <input type="text" name="nome" required placeholder="Digite seu nome">
+                        <input type="text" name="nome" required placeholder="Digite seu nome" value="<?= htmlspecialchars($user['nome'] ?? '') ?>">
                     </div>
                     <div class="form-group">
                         <label>E-mail</label>
-                        <input type="email" name="email" required placeholder="seu@email.com">
+                        <input type="email" name="email" required placeholder="seu@email.com" value="<?= htmlspecialchars($user['email'] ?? '') ?>" <?= isset($user) ? 'readonly' : '' ?>>
                     </div>
                 </div>
 
@@ -136,22 +147,34 @@ require_once 'config.php';
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div class="form-group">
                         <label>CEP</label>
-                        <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9">
+                        <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" value="<?= htmlspecialchars($user['cep'] ?? '') ?>">
                     </div>
                     <div class="form-group">
                         <label>Estado (UF)</label>
-                        <input type="text" id="estado" name="estado" required readonly placeholder="Preenchido via CEP">
+                        <input type="text" id="estado" name="estado" required placeholder="Ex: SP" maxlength="2" value="<?= htmlspecialchars($user['estado'] ?? '') ?>">
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Endereço / Logradouro</label>
-                    <input type="text" id="endereco" name="endereco" required placeholder="Ex: Rua das Flores, 123 - Bairro Centro">
+                <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label>Endereço / Rua</label>
+                        <input type="text" id="endereco" name="endereco" required placeholder="Ex: Rua das Flores" value="<?= htmlspecialchars($user['endereco'] ?? '') ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Número</label>
+                        <input type="text" id="numero" name="numero" required placeholder="123" value="<?= htmlspecialchars($user['numero'] ?? '') ?>">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Cidade</label>
-                    <input type="text" id="cidade" name="cidade" required readonly placeholder="Preenchido via CEP">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label>Bairro</label>
+                        <input type="text" id="bairro" name="bairro" required placeholder="Centro" value="<?= htmlspecialchars($user['bairro'] ?? '') ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Cidade</label>
+                        <input type="text" id="cidade" name="cidade" required placeholder="Sua Cidade" value="<?= htmlspecialchars($user['cidade'] ?? '') ?>">
+                    </div>
                 </div>
 
                 <span class="section-title">Pagamento</span>
@@ -175,8 +198,7 @@ require_once 'config.php';
         <aside class="resumo-pedido">
             <h3 style="font-weight: 900; margin-bottom: 25px; text-transform: uppercase; font-size: 14px; letter-spacing: 1px;">Resumo do Pedido</h3>
             
-            <div id="listaCheckout">
-                </div>
+            <div id="listaCheckout"></div>
             
             <div style="margin-top: 30px; border-top: 2px solid #000; padding-top: 25px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #666;">
@@ -198,75 +220,54 @@ require_once 'config.php';
     <script src="script.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const lista = document.getElementById('listaCheckout');
-            const subtotalTxt = document.getElementById('subtotalCheckout');
-            const totalTxt = document.getElementById('totalCheckout');
-            const inputDados = document.getElementById('inputCarrinhoDados');
+            const inputCep = document.getElementById('cep');
             
+            // Função para buscar CEP
+            inputCep.addEventListener('blur', () => {
+                let cep = inputCep.value.replace(/\D/g, ''); 
+                if (cep.length === 8) {
+                    fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                        .then(res => res.json())
+                        .then(dados => {
+                            if (!dados.erro) {
+                                document.getElementById('endereco').value = dados.logradouro;
+                                document.getElementById('bairro').value = dados.bairro;
+                                document.getElementById('cidade').value = dados.localidade;
+                                document.getElementById('estado').value = dados.uf;
+                                document.getElementById('numero').focus();
+                            }
+                        });
+                }
+            });
+
+            // Lógica do Carrinho (sessionStorage)
             const carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
+            const inputDados = document.getElementById('inputCarrinhoDados');
+            const lista = document.getElementById('listaCheckout');
             
             if(carrinho.length === 0) {
-                alert("Sua sacola está vazia!");
                 window.location.href = "index.php";
                 return;
             }
 
             inputDados.value = JSON.stringify(carrinho);
-
             let total = 0;
+            
             lista.innerHTML = carrinho.map(item => {
-                const sub = (item.preco * item.qtd);
-                total += sub;
-                
+                total += (item.preco * item.qtd);
                 return `
                     <div class="item-checkout">
-                        <img src="${resolverCaminhoImagem(item.img)}" onerror="this.src='img/produtos/cb74cbfc6e4fa08cecc6bd257fc0f000.webp'">
+                        <img src="${item.img}">
                         <div class="item-info">
                             <h4>${item.nome}</h4>
-                            <p>
-                                ${item.tamanho_escolhido ? `TAM: ${item.tamanho_escolhido}` : 'TAM: PADRÃO'} 
-                                ${item.cor_escolhida ? ` | COR: ${item.cor_escolhida}` : ''}
-                            </p>
                             <span class="item-price">${item.qtd}x R$ ${parseFloat(item.preco).toLocaleString('pt-br', {minimumFractionDigits: 2})}</span>
                         </div>
                     </div>
                 `;
             }).join('');
 
-            const totalFormatado = `R$ ${total.toLocaleString('pt-br', {minimumFractionDigits: 2})}`;
-            subtotalTxt.innerText = totalFormatado;
-            totalTxt.innerText = totalFormatado;
-
-            // --- LÓGICA DE AUTO-PREENCHIMENTO DE CEP ---
-            const inputCep = document.getElementById('cep');
-            inputCep.addEventListener('blur', () => {
-                let cep = inputCep.value.replace(/\D/g, ''); // Limpa números
-
-                if (cep.length === 8) {
-                    // Feedback visual de carregamento
-                    const campos = ['endereco', 'cidade', 'estado'];
-                    campos.forEach(id => document.getElementById(id).value = 'Carregando...');
-
-                    fetch(`https://viacep.com.br/ws/${cep}/json/`)
-                        .then(res => res.json())
-                        .then(dados => {
-                            if (!dados.erro) {
-                                document.getElementById('endereco').value = `${dados.logradouro}${dados.bairro ? ', ' + dados.bairro : ''}`;
-                                document.getElementById('cidade').value = dados.localidade;
-                                document.getElementById('estado').value = dados.uf;
-                                // Foca no campo de endereço para o usuário completar o número
-                                document.getElementById('endereco').focus();
-                            } else {
-                                alert("CEP não encontrado.");
-                                campos.forEach(id => document.getElementById(id).value = '');
-                            }
-                        })
-                        .catch(() => {
-                            alert("Erro ao buscar CEP. Verifique sua conexão.");
-                            campos.forEach(id => document.getElementById(id).value = '');
-                        });
-                }
-            });
+            document.getElementById('totalCheckout').innerText = `R$ ${total.toLocaleString('pt-br', {minimumFractionDigits: 2})}`;
+            document.getElementById('subtotalCheckout').innerText = `R$ ${total.toLocaleString('pt-br', {minimumFractionDigits: 2})}`;
         });
     </script>
 </body>
