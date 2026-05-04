@@ -4,15 +4,16 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once 'config.php'; 
 
-// --- LÓGICA DE BUSCA DE DADOS DO USUÁRIO ---
+// --- TRAVA DE SEGURANÇA: SÓ ACESSA LOGADO ---
 $user = null;
 if (isset($_SESSION['usuario_id'])) {
     $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = ?");
     $stmt->execute([$_SESSION['usuario_id']]);
     $user = $stmt->fetch();
 } else {
-    // Se você quiser obrigar o login para comprar, descomente a linha abaixo:
-    // header("Location: login.php?erro=faca_login"); exit();
+    // Redireciona caso não esteja logado
+    header("Location: login.php?msg=faca_login_para_finalizar"); 
+    exit; 
 }
 ?>
 <!DOCTYPE html>
@@ -22,82 +23,93 @@ if (isset($_SESSION['usuario_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finalizar Compra | Alto Jordão</title>
     <link rel="stylesheet" href="style.css?v=<?= time(); ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-light: #f9f9f9;
-            --border-color: #eee;
+            --bg-light: #fbfbfb;
+            --border-color: #efefef;
+            --accent: #000;
         }
 
+        body { background-color: #fff; color: #000; font-family: 'Inter', sans-serif; }
+
         .checkout-container {
-            max-width: 1200px;
-            margin: 60px auto;
+            max-width: 1100px;
+            margin: 40px auto 100px;
             padding: 0 20px;
             display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 60px;
-            align-items: flex-start;
+            grid-template-columns: 1fr 380px;
+            gap: 80px;
         }
 
         .checkout-form h2 { 
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 900; 
             text-transform: uppercase; 
-            margin-bottom: 40px; 
-            letter-spacing: -1px;
+            margin-bottom: 50px; 
+            letter-spacing: -2px;
         }
 
         .section-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #999;
-            margin-bottom: 20px;
-            display: block;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
+            letter-spacing: 3px;
+            color: #bbb;
+            margin: 40px 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
+        .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border-color); }
 
-        .form-group { margin-bottom: 25px; }
-        .form-group label { display: block; font-weight: 700; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; color: #333; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 800; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; color: #000; letter-spacing: 0.5px; }
+        
         .form-group input, .form-group select { 
             width: 100%; 
-            padding: 15px; 
-            border: 1px solid var(--border-color); 
+            padding: 16px; 
+            border: 1.5px solid var(--border-color); 
             border-radius: 12px; 
-            font-size: 15px;
+            font-size: 14px;
+            font-family: inherit;
             background: var(--bg-light);
-            transition: 0.3s;
+            transition: all 0.3s ease;
         }
-        .form-group input:focus { border-color: #000; outline: none; background: #fff; }
+        .form-group input:focus { border-color: #000; background: #fff; outline: none; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .form-group input[readonly] { opacity: 0.6; cursor: not-allowed; background: #f0f0f0; }
 
+        /* Resumo Lateral */
         .resumo-pedido {
             background: #fff;
-            padding: 40px;
-            border-radius: 25px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.04);
+            padding: 35px;
+            border-radius: 30px;
+            border: 1px solid var(--border-color);
             position: sticky;
-            top: 100px;
+            top: 120px;
+            height: fit-content;
         }
 
         .item-checkout {
             display: flex;
-            gap: 20px;
+            gap: 15px;
             margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px dotted #eee;
+            align-items: center;
         }
         .item-checkout img { 
-            width: 70px; 
-            height: 90px; 
-            object-fit: contain; 
-            background: #f9f9f9;
-            border-radius: 8px; 
+            width: 60px; 
+            height: 60px; 
+            object-fit: cover; 
+            background: #f5f5f5;
+            border-radius: 10px; 
         }
-        .item-info h4 { font-size: 13px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
-        .item-info p { font-size: 11px; color: #999; margin: 5px 0; font-weight: 600; }
-        .item-info .item-price { font-weight: 800; font-size: 14px; display: block; margin-top: 5px; color: #000; }
+        .item-info h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; margin: 0; }
+        .item-info p { font-size: 10px; color: #888; margin: 2px 0; font-weight: 600; text-transform: uppercase; }
+
+        .summary-totals { margin-top: 25px; padding-top: 25px; border-top: 1px solid #eee; }
+        .total-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .total-line.final { font-size: 24px; font-weight: 900; margin-top: 15px; border-top: 2px solid #000; padding-top: 15px; }
 
         .btn-finalizar {
             width: 100%;
@@ -107,18 +119,19 @@ if (isset($_SESSION['usuario_id'])) {
             border: none;
             border-radius: 50px;
             font-weight: 900;
-            font-size: 14px;
-            letter-spacing: 1px;
+            font-size: 13px;
+            letter-spacing: 2px;
             text-transform: uppercase;
             cursor: pointer;
-            transition: 0.3s;
-            margin-top: 30px;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-top: 20px;
         }
-        .btn-finalizar:hover { transform: scale(1.02); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .btn-finalizar:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
 
         @media (max-width: 900px) {
-            .checkout-container { grid-template-columns: 1fr; }
-            .resumo-pedido { position: static; }
+            .checkout-container { grid-template-columns: 1fr; margin-top: 20px; }
+            .resumo-pedido { position: static; margin-top: 40px; }
+            .checkout-form h2 { font-size: 1.8rem; }
         }
     </style>
 </head>
@@ -128,23 +141,23 @@ if (isset($_SESSION['usuario_id'])) {
 
     <main class="checkout-container">
         <section class="checkout-form">
-            <h2>Finalizar Compra</h2>
+            <h2>Finalizar Pedido</h2>
             
             <form action="processar_pedido.php" method="POST" id="formCheckout">
-                <span class="section-title">Informações Pessoais</span>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <span class="section-title">Dados do Comprador</span>
+                <div class="form-row">
                     <div class="form-group">
                         <label>Nome Completo</label>
-                        <input type="text" name="nome" required placeholder="Digite seu nome" value="<?= htmlspecialchars($user['nome'] ?? '') ?>">
+                        <input type="text" name="nome" required placeholder="Seu nome completo" value="<?= htmlspecialchars($user['nome'] ?? '') ?>">
                     </div>
                     <div class="form-group">
-                        <label>E-mail</label>
-                        <input type="email" name="email" required placeholder="seu@email.com" value="<?= htmlspecialchars($user['email'] ?? '') ?>" <?= isset($user) ? 'readonly' : '' ?>>
+                        <label>E-mail da Conta</label>
+                        <input type="email" name="email" required value="<?= htmlspecialchars($user['email'] ?? '') ?>" readonly title="E-mail vinculado à sua conta">
                     </div>
                 </div>
 
-                <span class="section-title">Endereço de Entrega</span>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <span class="section-title">Onde entregamos?</span>
+                <div class="form-row">
                     <div class="form-group">
                         <label>CEP</label>
                         <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" value="<?= htmlspecialchars($user['cep'] ?? '') ?>">
@@ -155,10 +168,10 @@ if (isset($_SESSION['usuario_id'])) {
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 20px;">
+                <div style="display: grid; grid-template-columns: 2.5fr 1fr; gap: 20px;">
                     <div class="form-group">
-                        <label>Endereço / Rua</label>
-                        <input type="text" id="endereco" name="endereco" required placeholder="Ex: Rua das Flores" value="<?= htmlspecialchars($user['endereco'] ?? '') ?>">
+                        <label>Logradouro / Rua</label>
+                        <input type="text" id="endereco" name="endereco" required placeholder="Ex: Av. Paulista" value="<?= htmlspecialchars($user['endereco'] ?? '') ?>">
                     </div>
                     <div class="form-group">
                         <label>Número</label>
@@ -166,23 +179,23 @@ if (isset($_SESSION['usuario_id'])) {
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-row">
                     <div class="form-group">
                         <label>Bairro</label>
-                        <input type="text" id="bairro" name="bairro" required placeholder="Centro" value="<?= htmlspecialchars($user['bairro'] ?? '') ?>">
+                        <input type="text" id="bairro" name="bairro" required placeholder="Seu bairro" value="<?= htmlspecialchars($user['bairro'] ?? '') ?>">
                     </div>
                     <div class="form-group">
                         <label>Cidade</label>
-                        <input type="text" id="cidade" name="cidade" required placeholder="Sua Cidade" value="<?= htmlspecialchars($user['cidade'] ?? '') ?>">
+                        <input type="text" id="cidade" name="cidade" required placeholder="Sua cidade" value="<?= htmlspecialchars($user['cidade'] ?? '') ?>">
                     </div>
                 </div>
 
                 <span class="section-title">Pagamento</span>
                 <div class="form-group">
-                    <label>Forma de Pagamento</label>
+                    <label>Escolha o método</label>
                     <select name="pagamento" required>
-                        <option value="pix">PIX (5% de desconto)</option>
-                        <option value="cartao">Cartão de Crédito</option>
+                        <option value="pix">PIX (Aprovação imediata + 5% OFF)</option>
+                        <option value="cartao">Cartão de Crédito (Até 12x)</option>
                         <option value="boleto">Boleto Bancário</option>
                     </select>
                 </div>
@@ -190,26 +203,27 @@ if (isset($_SESSION['usuario_id'])) {
                 <input type="hidden" name="carrinho_dados" id="inputCarrinhoDados">
 
                 <button type="submit" class="btn-finalizar">
-                    Confirmar Pedido
+                    Confirmar e Pagar
                 </button>
             </form>
         </section>
 
         <aside class="resumo-pedido">
-            <h3 style="font-weight: 900; margin-bottom: 25px; text-transform: uppercase; font-size: 14px; letter-spacing: 1px;">Resumo do Pedido</h3>
+            <h3 style="font-weight: 900; margin-bottom: 30px; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">Sua Sacola</h3>
             
-            <div id="listaCheckout"></div>
+            <div id="listaCheckout">
+                </div>
             
-            <div style="margin-top: 30px; border-top: 2px solid #000; padding-top: 25px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #666;">
-                    <span>Subtotal</span>
-                    <span id="subtotalCheckout">R$ 0,00</span>
+            <div class="summary-totals">
+                <div class="total-line">
+                    <span style="color: #888;">Subtotal</span>
+                    <span id="subtotalCheckout" style="font-weight: 700;">R$ 0,00</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; color: #666;">
-                    <span>Frete</span>
-                    <span style="color: #27ae60; font-weight: 900; letter-spacing: 1px;">GRÁTIS</span>
+                <div class="total-line">
+                    <span style="color: #888;">Frete</span>
+                    <span style="color: #27ae60; font-weight: 800; font-size: 11px;">GRÁTIS (EXPRESS)</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 22px; color: #000;">
+                <div class="total-line final">
                     <span>TOTAL</span>
                     <span id="totalCheckout">R$ 0,00</span>
                 </div>
@@ -217,12 +231,18 @@ if (isset($_SESSION['usuario_id'])) {
         </aside>
     </main>
 
-    <script src="script.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const inputCep = document.getElementById('cep');
             
-            // Função para buscar CEP
+            // Máscara Automática de CEP
+            inputCep.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '');
+                if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5, 8);
+                e.target.value = v;
+            });
+
+            // Busca de CEP (ViaCEP)
             inputCep.addEventListener('blur', () => {
                 let cep = inputCep.value.replace(/\D/g, ''); 
                 if (cep.length === 8) {
@@ -240,34 +260,35 @@ if (isset($_SESSION['usuario_id'])) {
                 }
             });
 
-            // Lógica do Carrinho (sessionStorage)
+            // Lógica do Carrinho
             const carrinho = JSON.parse(sessionStorage.getItem('fashion_cart')) || [];
-            const inputDados = document.getElementById('inputCarrinhoDados');
-            const lista = document.getElementById('listaCheckout');
-            
             if(carrinho.length === 0) {
-                window.location.href = "index.php";
+                window.location.href = "index.php"; // Se esvaziar, volta pra loja
                 return;
             }
 
-            inputDados.value = JSON.stringify(carrinho);
+            document.getElementById('inputCarrinhoDados').value = JSON.stringify(carrinho);
+            
             let total = 0;
+            const lista = document.getElementById('listaCheckout');
             
             lista.innerHTML = carrinho.map(item => {
-                total += (item.preco * item.qtd);
+                total += (parseFloat(item.preco) * item.qtd);
                 return `
                     <div class="item-checkout">
-                        <img src="${item.img}">
+                        <img src="${item.img}" alt="${item.nome}">
                         <div class="item-info">
                             <h4>${item.nome}</h4>
+                            <p>${item.tamanho_escolhido || 'P'} | ${item.cor_escolhida || 'Original'}</p>
                             <span class="item-price">${item.qtd}x R$ ${parseFloat(item.preco).toLocaleString('pt-br', {minimumFractionDigits: 2})}</span>
                         </div>
                     </div>
                 `;
             }).join('');
 
-            document.getElementById('totalCheckout').innerText = `R$ ${total.toLocaleString('pt-br', {minimumFractionDigits: 2})}`;
-            document.getElementById('subtotalCheckout').innerText = `R$ ${total.toLocaleString('pt-br', {minimumFractionDigits: 2})}`;
+            const totalFormatado = total.toLocaleString('pt-br', {style: 'currency', currency: 'BRL'});
+            document.getElementById('totalCheckout').innerText = totalFormatado;
+            document.getElementById('subtotalCheckout').innerText = totalFormatado;
         });
     </script>
 </body>

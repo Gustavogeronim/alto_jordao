@@ -6,7 +6,6 @@ $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $query = $pdo->prepare("SELECT * FROM produtos WHERE id = ?");
 $query->execute([$id]);
 
-// Usamos FETCH_ASSOC para garantir que os nomes das colunas venham como chaves
 $p = $query->fetch(PDO::FETCH_ASSOC);
 
 if (!$p) { 
@@ -14,13 +13,14 @@ if (!$p) {
     exit; 
 }
 
-/** * TRATAMENTO DE DADOS BLINDADO
- * Tentamos pegar 'tamanho' ou 'TAMANHO' (alguns bancos variam)
- */
+// BUSCA PRODUTOS PARECIDOS (Mesma categoria)
+$queryRelacionados = $pdo->prepare("SELECT * FROM produtos WHERE categoria = ? AND id != ? LIMIT 4");
+$queryRelacionados->execute([$p['categoria'] ?? '', $id]);
+$relacionados = $queryRelacionados->fetchAll(PDO::FETCH_ASSOC);
+
 $strTamanho = $p['tamanho'] ?? $p['TAMANHO'] ?? '';
 $strCor = $p['cor'] ?? $p['COR'] ?? '';
 
-// Explode e limpa espaços de cada item. Filtra para remover vazios.
 $tamanhosDisponiveis = array_filter(array_map('trim', explode(',', $strTamanho)));
 $coresDisponiveis = array_filter(array_map('trim', explode(',', $strCor)));
 
@@ -35,6 +35,7 @@ $produtoJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
     <link rel="stylesheet" href="style.css?v=<?= time() ?>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        /* Seus estilos originais mantidos */
         .produto-container { display: flex; flex-wrap: wrap; gap: 60px; max-width: 1200px; margin: 60px auto; padding: 0 20px; align-items: flex-start; }
         .produto-media { flex: 1.2; min-width: 350px; }
         .produto-info { flex: 0.8; min-width: 350px; }
@@ -45,19 +46,27 @@ $produtoJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
         .product-price { font-size: 1.8rem; font-weight: 400; color: #000; margin-bottom: 40px; font-family: 'Inter', sans-serif; }
         .selection-label { font-size: 10px; font-weight: 900; letter-spacing: 1.5px; margin-bottom: 15px; display: block; color: #888; }
         .chips-container { display: flex; gap: 12px; margin-bottom: 35px; flex-wrap: wrap; min-height: 20px; }
-        
-        /* Botões de Tamanho */
         .chip-size { min-width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; border: 2px solid #eee; background: #fff; border-radius: 15px; font-weight: 800; font-size: 14px; cursor: pointer; transition: 0.3s; }
         .chip-size.active { border-color: #000; background: #000; color: #fff; }
-        
-        /* Círculos de Cor */
         .chip-color { width: 40px; height: 40px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px #eee; cursor: pointer; transition: 0.3s; position: relative; }
         .chip-color.active { box-shadow: 0 0 0 2px #000; transform: scale(1.15); }
         .chip-color span { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 800; text-transform: uppercase; white-space: nowrap; opacity: 0; transition: 0.3s; }
         .chip-color.active span { opacity: 1; }
-
         .btn-add-cart { width: 100%; padding: 25px; background: #000; color: #fff; border: none; border-radius: 50px; font-weight: 900; font-size: 15px; letter-spacing: 2px; cursor: pointer; transition: 0.4s; margin-top: 30px; text-transform: uppercase; }
         .btn-add-cart:hover { background: #333; transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+
+        /* Estilos Novos para Comentários e Relacionados */
+        .divider { max-width: 1200px; margin: 80px auto 40px; padding: 0 20px; display: flex; align-items: center; gap: 20px; }
+        .divider h2 { font-weight: 900; text-transform: uppercase; letter-spacing: 2px; font-size: 1.2rem; white-space: nowrap; }
+        .divider .line { flex: 1; height: 1px; background: #eee; }
+
+        .relacionados-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto 80px; padding: 0 20px; }
+        
+        .reviews-section { display: grid; grid-template-columns: 1fr 1.5fr; gap: 60px; max-width: 1200px; margin: 0 auto 100px; padding: 0 20px; }
+        .form-review { background: #f9f9f9; padding: 40px; border-radius: 30px; }
+        .form-review input, .form-review textarea, .form-review select { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 15px; font-family: inherit; }
+        .review-item { padding: 25px 0; border-bottom: 1px solid #eee; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body> 
@@ -123,6 +132,50 @@ $produtoJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
     </div>
 </main>
 
+<div class="divider">
+    <h2>Quem viu, também gostou</h2>
+    <div class="line"></div>
+</div>
+
+<section class="relacionados-grid">
+    <?php foreach ($relacionados as $rel): ?>
+        <div class="product-card" onclick="window.location.href='produto.php?id=<?= $rel['id'] ?>'" style="cursor: pointer;">
+            <div style="background: #f9f9f9; border-radius: 25px; padding: 20px; text-align: center;">
+                <img src="img/produtos/<?= $rel['imagem'] ?>" style="width: 100%; height: 180px; object-fit: contain;">
+            </div>
+            <h4 style="margin: 15px 0 5px; font-weight: 800; text-transform: uppercase; font-size: 14px;"><?= htmlspecialchars($rel['nome']) ?></h4>
+            <p style="font-weight: 500;">R$ <?= number_format($rel['preco'], 2, ',', '.') ?></p>
+        </div>
+    <?php endforeach; ?>
+</section>
+
+<div class="divider">
+    <h2>Avaliações</h2>
+    <div class="line"></div>
+</div>
+
+<section class="reviews-section">
+    <div class="form-review">
+        <h3 style="font-weight: 900; margin-bottom: 20px;">DEIXE SUA OPINIÃO</h3>
+        <form id="commentForm">
+            <input type="text" id="revName" placeholder="Seu nome" required>
+            <select id="revStars">
+                <option value="5">⭐⭐⭐⭐⭐ (Excelente)</option>
+                <option value="4">⭐⭐⭐⭐ (Muito bom)</option>
+                <option value="3">⭐⭐⭐ (Bom)</option>
+                <option value="2">⭐⭐ (Regular)</option>
+                <option value="1">⭐ (Péssimo)</option>
+            </select>
+            <textarea id="revText" rows="4" placeholder="O que você achou do produto?" required></textarea>
+            <button type="submit" class="btn-add-cart" style="margin-top: 0; padding: 15px;">PUBLICAR</button>
+        </form>
+    </div>
+
+    <div id="reviewsList">
+        <p id="noReviews" style="color: #999; font-style: italic;">Nenhuma avaliação ainda. Seja o primeiro a avaliar!</p>
+    </div>
+</section>
+
 <script src="script.js?v=<?= time() ?>"></script>
 <script>
     function selecionarUnico(el, tipo, valor) {
@@ -137,11 +190,8 @@ $produtoJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
     function validarEComprar(produto) {
         const inputTam = document.getElementById('selected-tamanho');
         const inputCor = document.getElementById('selected-cor');
-        
-        // Verifica se as seções existem no HTML
         const temOpcaoTam = !!document.getElementById('container-tamanhos');
         const temOpcaoCor = !!document.getElementById('container-cores');
-
         const vTam = inputTam ? inputTam.value : '';
         const vCor = inputCor ? inputCor.value : '';
 
@@ -150,19 +200,37 @@ $produtoJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
             return;
         }
 
-        const itemFinal = {
-            ...produto,
-            tamanho_escolhido: vTam || 'N/A',
-            cor_escolhida: vCor || 'N/A'
-        };
-
+        const itemFinal = { ...produto, tamanho_escolhido: vTam || 'N/A', cor_escolhida: vCor || 'N/A' };
         if (typeof adicionarAoCarrinho === "function") {
             adicionarAoCarrinho(itemFinal);
         } else {
-            console.log("Carrinho não encontrado. Dados:", itemFinal);
-            alert("Produto pronto para o carrinho!");
+            alert("Produto adicionado!");
         }
     }
+
+    // Lógica para Adicionar Comentário na tela
+    document.getElementById('commentForm').onsubmit = function(e) {
+        e.preventDefault();
+        
+        const name = document.getElementById('revName').value;
+        const stars = document.getElementById('revStars').value;
+        const text = document.getElementById('revText').value;
+        const list = document.getElementById('reviewsList');
+        const noRev = document.getElementById('noReviews');
+
+        if(noRev) noRev.remove();
+
+        const div = document.createElement('div');
+        div.className = 'review-item';
+        div.innerHTML = `
+            <div style="color: #000; margin-bottom: 5px;">${"⭐".repeat(stars)}</div>
+            <strong style="text-transform: uppercase; font-size: 12px;">${name}</strong>
+            <p style="color: #666; font-size: 14px; margin-top: 10px; line-height: 1.6;">${text}</p>
+        `;
+
+        list.prepend(div); // Adiciona no topo da lista
+        this.reset();
+    };
 </script>
 </body>
 </html>

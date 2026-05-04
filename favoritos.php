@@ -93,6 +93,7 @@ if (session_status() === PHP_SESSION_NONE) {
         </div>
     </main>
 
+
     <script src="script.js?v=<?= time() ?>"></script> 
 
     <script>

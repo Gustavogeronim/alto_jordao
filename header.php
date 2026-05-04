@@ -12,7 +12,7 @@ if (session_status() === PHP_SESSION_NONE) {
             
             <?php if(isset($_SESSION['usuario_id'])): ?>
                 <?php if(isset($_SESSION['usuario_nivel']) && $_SESSION['usuario_nivel'] === 'admin'): ?>
-                    <a href="admin.php" style="margin-left: 15px; color: #ff4d4d; font-weight: 700; text-decoration: none;">⚙️ PAINEL ADMIN</a>
+                    <a href="admin_vendas.php" style="margin-left: 15px; color: #ff4d4d; font-weight: 700; text-decoration: none;">⚙️ PAINEL ADMIN</a>
                 <?php endif; ?>
 
                 <span class="user-welcome" style="margin-left: 15px;">oi, <strong><?= explode(' ', $_SESSION['usuario_nome'])[0]; ?></strong></span>
@@ -31,6 +31,8 @@ if (session_status() === PHP_SESSION_NONE) {
         <a href="lancamentos.php" class="<?= basename($_SERVER['PHP_SELF']) == 'lancamentos.php' ? 'active' : '' ?>">Lançamentos</a>
         <a href="masculino.php" class="<?= basename($_SERVER['PHP_SELF']) == 'masculino.php' ? 'active' : '' ?>">Masculino</a>
         <a href="feminino.php" class="<?= basename($_SERVER['PHP_SELF']) == 'feminino.php' ? 'active' : '' ?>">Feminino</a>
+        
+        <a href="kids.php" class="<?= basename($_SERVER['PHP_SELF']) == 'kids.php' ? 'active' : '' ?>">Kids</a>
     </nav>
 
     <div class="header-actions">

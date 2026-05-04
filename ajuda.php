@@ -202,7 +202,5 @@ if (session_status() === PHP_SESSION_NONE) {
     }
 </script>
 
-<?php include 'footer.php'; ?>
-
 </body>
 </html>

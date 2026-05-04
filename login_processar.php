@@ -1,5 +1,4 @@
 <?php
-// 1. Inicia a sessão obrigatoriamente no topo para salvar as permissões
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -7,34 +6,36 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'];
+    // Sanitização básica
+    $email = trim($_POST['email']);
     $senha = $_POST['senha'];
 
-    // 2. Busca o usuário por e-mail e senha
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ? AND senha = ?");
-    $stmt->execute([$email, $senha]);
+    // 1. Buscamos o usuário APENAS pelo e-mail primeiro
+    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
+    $stmt->execute([$email]);
     $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($usuario) {
-        // 3. Sucesso: Gravamos os dados na SESSÃO para usar em outras páginas
+    // 2. Verificamos se o usuário existe E se a senha confere
+    // Usei password_verify para bater com o hash do banco
+    if ($usuario && password_verify($senha, $usuario['senha'])) {
+        
+        // 3. Gravamos os dados na SESSÃO
         $_SESSION['usuario_id']    = $usuario['id'];
         $_SESSION['usuario_nome']  = $usuario['nome'];
-        $_SESSION['usuario_nivel'] = $usuario['nivel']; // 'admin' ou 'cliente'
+        $_SESSION['usuario_nivel'] = strtolower($usuario['nivel']); // Padroniza para minúsculo
 
-        // 4. Redirecionamento Inteligente por Permissão
+        // 4. Redirecionamento Inteligente
         if ($_SESSION['usuario_nivel'] === 'admin') {
-            // Se for admin, vai para o painel de controle
             header("Location: dashboard_admin.php");
         } else {
-            // Se for cliente comum, vai para a home ou perfil
+            // Se for cliente, vai para a Home
             header("Location: index.php");
         }
         exit();
         
     } else {
-        // 5. Erro: Credenciais incorretas
+        // 5. Erro: Usuário não existe ou senha errada
         header("Location: login.php?erro=1");
         exit();
     }
 }
-?>
