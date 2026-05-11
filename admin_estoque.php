@@ -109,7 +109,7 @@ $produtos = $pdo->query("SELECT id, nome, estoque, imagem FROM produtos ORDER BY
 
         <div class="nav-section" style="margin-top: auto;">
             <a href="index.php" class="nav-item">Voltar para Loja</a>
-            <a href="logout.php" class="nav-item" style="color: #ff4d4d;">Sair</a>
+            <a href="logout.php" class="nav-item" style="color: #ff4d4d;">Sair da Conta</a>
         </div>
     </aside>
 

@@ -60,13 +60,11 @@ $user = $stmt->fetch();
         </script>
     <?php endif; ?> 
 
-    <?php if (isset($user['nivel']) && $user['nivel'] !== 'admin'): ?>
-        <div class="user-nav-top" style="max-width: 1200px; margin: 20px auto; padding: 0 20px; text-align: right;">
-            <a href="pedidos.php" class="btn-black-capsule" style="text-decoration: none; display: inline-block;">
-                📦 VER MEUS PEDIDOS
-            </a>
-        </div>
-    <?php endif; ?>
+    <div style="max-width: 1200px; margin: 20px auto; padding: 0 20px; text-align: center;">
+        <a href="meus_pedidos.php" class="btn-black-capsule" style="text-decoration: none; display: inline-block; padding: 15px 40px;">
+            📦 ACESSAR MEUS PEDIDOS
+        </a>
+    </div>
 
     <div class="user-full-wrapper"> 
         <main class="user-main-wide">
